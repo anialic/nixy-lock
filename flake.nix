@@ -1,7 +1,7 @@
 {
   description = "nixy-lock: Lock tool for nixy inputs";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   outputs = { self, nixpkgs }:
     let
@@ -13,15 +13,13 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           script = pkgs.writeShellScript "nixy-lock" ''
-            set -e
             if [ $# -lt 2 ]; then
-              echo "Usage: nix run github:anialic/nixy-lock <name> <url> [<name> <url> ...]"
-              echo "Example: nix run github:anialic/nixy-lock nixpkgs github:NixOS/nixpkgs/nixos-unstable"
+              echo "Usage: nix run github:anialic/nixy-lock <n> <url> [<n> <url> ...]" >&2
+              echo "Example: nix run github:anialic/nixy-lock nixpkgs github:NixOS/nixpkgs/nixos-unstable" >&2
               exit 1
             fi
 
-            echo "{"
-            first=true
+            entries=""
             while [ $# -ge 2 ]; do
               name="$1"
               url="$2"
@@ -35,17 +33,24 @@
               elif [[ "$url" =~ ^https?:// ]]; then
                 tarball="$url"
               else
-                echo "Unsupported: $url" >&2
+                echo "Skipping unsupported URL: $url" >&2
                 continue
               fi
 
-              echo "Locking $name..." >&2
-              sha256=$(${pkgs.nix}/bin/nix-prefetch-url --unpack "$tarball" 2>/dev/null)
+              echo "Locking $name ($tarball)..." >&2
+              sha256=$(${pkgs.nix}/bin/nix-prefetch-url --unpack "$tarball" 2>/dev/null) || {
+                echo "Failed to lock $name" >&2
+                continue
+              }
 
-              [ "$first" = true ] && first=false || echo ","
-              printf '  "%s": { "url": "%s", "sha256": "%s" }' "$name" "$tarball" "$sha256"
+              if [ -n "$entries" ]; then
+                entries="$entries,"$'\n'
+              fi
+              entries="$entries  \"$name\": { \"url\": \"$tarball\", \"sha256\": \"$sha256\" }"
             done
-            echo ""
+
+            echo "{"
+            echo "$entries"
             echo "}"
           '';
         in
