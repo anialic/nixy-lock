@@ -1,7 +1,7 @@
 {
   description = "nixy-lock: Lock tool for nixy inputs";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable-small";
 
   outputs = { self, nixpkgs }:
     let
